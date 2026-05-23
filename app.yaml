@@ -8,7 +8,7 @@ command:
 env:
   # The SQL warehouse used for all queries and grant statements.
   - name: SQL_WAREHOUSE_ID
-    value: 00000000aaaaa
+    value: 00aa
 
   # Delta table that persists app configuration (catalog.schema.table).
   # The app creates this table automatically on first startup if it does not exist.
