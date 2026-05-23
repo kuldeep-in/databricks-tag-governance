@@ -1,6 +1,9 @@
 # Installation Guide — UC Tag Governance App
 
-A step-by-step guide to deploying the Unity Catalog Tag Governance Databricks App from scratch.
+A step-by-step guide to deploying the Unity Catalog Tag Governance Databricks App.
+
+> **No build step required.** The app is built entirely in Python (Streamlit + FastAPI backend logic).
+> No Node.js, npm, or frontend compilation needed.
 
 ---
 
@@ -9,8 +12,7 @@ A step-by-step guide to deploying the Unity Catalog Tag Governance Databricks Ap
 | Requirement | Notes |
 |---|---|
 | Databricks CLI ≥ 0.229.0 | `pip install databricks-cli` or download from [docs](https://docs.databricks.com/dev-tools/cli/install.html) |
-| Node.js ≥ 18 | Required to build the React frontend |
-| Python ≥ 3.11 | Required to run setup.py locally |
+| Python ≥ 3.11 | Required to run `setup.py` locally |
 | Workspace admin role | Needed to create the app and run grants |
 | Unity Catalog metastore | Tables must be in UC-managed catalogs |
 | SQL Warehouse | Used for all SQL queries at runtime |
@@ -48,14 +50,12 @@ Open `app.yaml` and fill in the three placeholder values:
 
 ```yaml
 command:
-  - "python"
-  - "-m"
-  - "uvicorn"
-  - "app:app"
-  - "--host"
-  - "0.0.0.0"
-  - "--port"
-  - "8000"
+  - "streamlit"
+  - "run"
+  - "app.py"
+  - "--server.port=8000"
+  - "--server.address=0.0.0.0"
+  - "--server.headless=true"
 
 env:
   - name: SQL_WAREHOUSE_ID
@@ -70,7 +70,6 @@ env:
   - name: INFO_CATALOG
     value: <your-catalog>
     # ↑ The catalog whose information_schema the app queries.
-    #   This is the catalog that contains the schemas you want to govern.
     #   Often the same catalog as CONFIG_TABLE, but can differ.
 ```
 
@@ -79,24 +78,9 @@ Go to SQL Warehouses in the Databricks UI → click your warehouse → copy the 
 
 ---
 
-## Step 4 — Build the React frontend
+## Step 4 — Upload source files to Databricks Workspace
 
-The app serves the compiled frontend from `frontend/dist/`. You must build it before deploying.
-
-```bash
-cd frontend
-npm install
-npm run build
-cd ..
-```
-
-This creates `frontend/dist/` with the compiled static files.
-
----
-
-## Step 5 — Upload source files to Databricks Workspace
-
-Choose a destination path in your workspace. A typical location:
+Choose a destination path in your workspace:
 
 ```
 /Workspace/Users/<your-email>/uc-tag-governance/
@@ -106,51 +90,39 @@ Create the directory structure and upload all files:
 
 ```bash
 DEST="/Workspace/Users/<your-email>/uc-tag-governance"
+PROFILE="<your-profile>"
 
 # Create directories
-databricks workspace mkdirs "$DEST/server/routes" -p <your-profile>
-databricks workspace mkdirs "$DEST/frontend/src/components" -p <your-profile>
-databricks workspace mkdirs "$DEST/frontend/dist/assets" -p <your-profile>
+databricks workspace mkdirs "$DEST/server/routes" --profile $PROFILE
 
 # Upload root files
 for f in app.py app.yaml requirements.txt setup.py; do
-  databricks workspace import "$DEST/$f" --file "$f" --format RAW --overwrite -p <your-profile>
+  databricks workspace import "$DEST/$f" --file "$f" --format RAW --overwrite --profile $PROFILE
 done
 
-# Upload server files
-for f in server/__init__.py server/config.py server/config_store.py \
-          server/routes/__init__.py server/routes/tables.py \
-          server/routes/apply.py server/routes/config.py; do
-  databricks workspace import "$DEST/$f" --file "$f" --format RAW --overwrite -p <your-profile>
+# Upload server modules
+for f in server/__init__.py server/config.py server/config_store.py server/routes/__init__.py; do
+  databricks workspace import "$DEST/$f" --file "$f" --format RAW --overwrite --profile $PROFILE
 done
-
-# Upload frontend source (not strictly needed at runtime, but good to keep in sync)
-for f in frontend/package.json frontend/vite.config.ts frontend/tsconfig.json frontend/index.html \
-          frontend/src/App.tsx frontend/src/api.ts frontend/src/main.tsx \
-          frontend/src/components/Overview.tsx frontend/src/components/TablesView.tsx \
-          frontend/src/components/EditModal.tsx frontend/src/components/Settings.tsx; do
-  databricks workspace import "$DEST/$f" --file "$f" --format RAW --overwrite -p <your-profile>
-done
-
-# Upload built frontend (required for the app to serve the UI)
-databricks workspace import-dir frontend/dist "$DEST/frontend/dist" --overwrite -p <your-profile>
 ```
+
+> **Note:** There is no frontend build step. The `frontend/` directory is no longer required.
 
 ---
 
-## Step 6 — Create the Databricks App
+## Step 5 — Create the Databricks App
 
 ```bash
 databricks apps create uc-tag-governance \
   --description "Unity Catalog tag governance — browse, filter, and edit table tags" \
-  -p <your-profile>
+  --profile <your-profile>
 ```
 
 Wait for the app to be created (this provisions a service principal automatically).
 
 ---
 
-## Step 7 — Run the one-time setup script
+## Step 6 — Run the one-time grants setup
 
 `setup.py` applies all Unity Catalog grants the app's service principal needs to read `information_schema` and apply tags. Run it as a metastore admin from your local machine.
 
@@ -192,32 +164,32 @@ The `--target-catalogs` flag grants the SP catalog-level access (`USE SCHEMA ON 
 
 ---
 
-## Step 8 — Deploy the app
+## Step 7 — Deploy the app
 
 ```bash
 databricks apps deploy uc-tag-governance \
   --source-code-path "/Workspace/Users/<your-email>/uc-tag-governance" \
-  -p <your-profile>
+  --profile <your-profile>
 ```
 
 Watch the deployment status:
 
 ```bash
-databricks apps get uc-tag-governance -p <your-profile>
+databricks apps get uc-tag-governance --profile <your-profile>
 ```
 
 When the `state` shows `RUNNING`, the app is live. The URL is shown in the output under `url`.
 
 ---
 
-## Step 9 — First-time configuration via the UI
+## Step 8 — First-time configuration via the UI
 
-Open the app URL in a browser and click the **Configure** gear icon (top right).
+Open the app URL in a browser and click the **⚙️ Configure** tab (top of the page).
 
 1. **Scanned Schemas** — Add each `catalog + schema` pair you want the app to govern. Example: `my_catalog` / `my_schema`.
 2. **Tag Names** — Add the tag keys your organization uses. Example: `Domain`, `Subdomain`, `DataClass`, `RetentionPeriod`.
 3. **Table Exceptions** *(optional)* — Add fully-qualified table names to exclude from all counts and the table list.
-4. Click **Save Configuration**.
+4. Click **💾 Save Configuration**.
 
 On save, the app:
 - Writes the config to the Delta table (`CONFIG_TABLE`)
@@ -226,42 +198,42 @@ On save, the app:
 
 ---
 
-## Step 10 — Verify
+## Step 9 — Verify
 
-Navigate to the **Overview** tab. You should see:
+Navigate to the **📊 Overview** tab. You should see:
 
 - KPI cards showing total catalogs, schemas, tables, and tagging coverage
 - Bar charts for tables by Domain and Subdomain
 - DataClass pie chart (populates once DataClass tags are applied)
 
-Navigate to the **Tables** tab to browse tables and click **Edit** on any row to apply tags.
+Navigate to the **📋 Tables** tab to browse tables. Click any row to expand an inline edit form to apply tags and update descriptions.
 
 ---
 
 ## Redeployment after code changes
 
-When you update source files:
+When you update source files (no build step needed):
 
 ```bash
-# 1. Re-build the frontend if you changed any frontend/ files
-cd frontend && npm run build && cd ..
+DEST="/Workspace/Users/<your-email>/uc-tag-governance"
+PROFILE="<your-profile>"
 
-# 2. Re-upload changed files to the workspace
-databricks workspace import "$DEST/<changed-file>" --file "<changed-file>" --format RAW --overwrite -p <your-profile>
+# Re-upload changed files
+databricks workspace import "$DEST/app.py" --file app.py --format RAW --overwrite --profile $PROFILE
 
-# 3. Redeploy
+# Redeploy
 databricks apps deploy uc-tag-governance \
   --source-code-path "$DEST" \
-  -p <your-profile>
+  --profile $PROFILE
 ```
 
 ---
 
 ## Adding a new governed catalog later
 
-If you add a new catalog in the Settings UI, the app automatically runs catalog-level grants using your logged-in token at save time. This covers all schemas in the catalog immediately.
+If you add a new catalog in the **Configure** tab, the app automatically runs catalog-level grants using your logged-in token at save time. This covers all schemas in the catalog immediately.
 
-If automatic grants fail (visible in the grant results panel after saving), run manually as a metastore admin:
+If automatic grants fail (visible as an error after saving), run manually as a metastore admin:
 
 ```sql
 GRANT USE CATALOG   ON CATALOG `<new-catalog>` TO `<app-sp-uuid>`;
@@ -271,7 +243,7 @@ GRANT SELECT        ON ALL TABLES  IN CATALOG `<new-catalog>` TO `<app-sp-uuid>`
 GRANT MODIFY        ON ALL TABLES  IN CATALOG `<new-catalog>` TO `<app-sp-uuid>`;
 ```
 
-The SP UUID is shown in the grant results panel in the Settings UI, or find it via:
+The SP UUID can be found by running:
 
 ```bash
 python setup.py --app-name uc-tag-governance --profile <your-profile>
@@ -283,15 +255,11 @@ python setup.py --app-name uc-tag-governance --profile <your-profile>
 
 ### App shows "No schemas configured" on load
 
-The config table is empty or unreachable. Open **Configure**, add at least one schema, and save. If saving fails, check that `CONFIG_TABLE` in `app.yaml` points to an existing catalog and schema.
+The config table is empty or unreachable. Open the **Configure** tab, add at least one schema, and save. If saving fails, check that `CONFIG_TABLE` in `app.yaml` points to an existing catalog and schema.
 
 ### KPI counts are all zero
 
-The app's service principal cannot see tables in `information_schema`. This is a privilege-filtering issue. Ensure Step 7 (setup.py) was run for the governed catalog(s), or run the grants manually (see above).
-
-### Grant results show failures after saving config
-
-Your logged-in account may not have `MANAGE GRANTS` on the target catalog. Ask a metastore admin to run the displayed SQL statements, or run `setup.py` as an admin.
+The app's service principal cannot see tables in `information_schema`. Ensure Step 6 (`setup.py`) was run for the governed catalog(s), or run the grants manually (see above).
 
 ### App fails to start
 
@@ -303,19 +271,9 @@ https://<your-app-url>/logz
 
 Common causes:
 - `SQL_WAREHOUSE_ID` or `CONFIG_TABLE` env vars not set in `app.yaml`
-- SQL Warehouse is stopped — start it in the UI
+- SQL Warehouse is stopped — start it in the Databricks UI
 - SP does not have `CAN_USE` on the warehouse — run `setup.py` or grant manually
 
-### Frontend shows a blank page
-
-The `frontend/dist/` directory was not uploaded. Re-run:
-
-```bash
-databricks workspace import-dir frontend/dist "$DEST/frontend/dist" --overwrite -p <your-profile>
-```
-
-Then redeploy.
-
-### Tags not persisting after clicking Apply
+### Tags not persisting after clicking Apply Changes
 
 The SP needs `APPLY TAG` and `MODIFY` on the target table's catalog. Confirm the governed catalog was included in `--target-catalogs` when running `setup.py`.

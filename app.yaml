@@ -1,24 +1,21 @@
 command:
-  - "python"
-  - "-m"
-  - "uvicorn"
-  - "app:app"
-  - "--host"
-  - "0.0.0.0"
-  - "--port"
-  - "8000"
+  - "streamlit"
+  - "run"
+  - "app.py"
+  - "--server.port=8000"
+  - "--server.address=0.0.0.0"
+  - "--server.headless=true"
 
 env:
   # The SQL warehouse used for all queries and grant statements.
   - name: SQL_WAREHOUSE_ID
-    value: <your-warehouse-id>
+    value: 00000000aaaa
 
   # Delta table that persists app configuration (catalog.schema.table).
   # The app creates this table automatically on first startup if it does not exist.
   - name: CONFIG_TABLE
-    value: <your-catalog>.default.uc_tag_governance_config
+    value: classic_stable_kuldeep01.default.uc_tag_governance_config
 
   # The Unity Catalog catalog whose information_schema is queried for table and tag metadata.
-  # All schemas added in the Configure page must belong to this catalog.
   - name: INFO_CATALOG
-    value: <your-catalog>
+    value: classic_stable_kuldeep01
