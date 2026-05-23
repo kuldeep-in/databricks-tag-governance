@@ -11,60 +11,80 @@ from utils import (
 
 
 def layout():
-    cfg = get_config()
-    if cfg is None or not cfg.get("schemas"):
-        return dbc.Alert("No schemas configured. Go to the ⚙️ Configure tab to add schemas.", color="info")
-
-    catalogs = sorted({s["catalog"] for s in cfg["schemas"]})
+    cfg         = get_config() or {}
+    catalogs    = sorted({s["catalog"] for s in cfg.get("schemas", [])})
+    all_schemas = sorted({s["schema"]  for s in cfg.get("schemas", [])})
     return html.Div([
+        # fires once ~300 ms after the initial render to trigger the first data load
+        dcc.Interval(id="ov-auto-load", interval=300, max_intervals=1),
         dbc.Row([
-            dbc.Col(dcc.Dropdown(
-                id="ov-cat", options=["All"] + catalogs, value="All",
-                clearable=False, className="mb-2",
-            ), width=3),
-            dbc.Col(dcc.Dropdown(
-                id="ov-sch", options=["All"], value="All",
-                clearable=False, className="mb-2",
-            ), width=3),
-            dbc.Col(dbc.Button("Load", id="ov-load-btn", color="primary", size="sm"), width=2),
-        ]),
-        html.Div(id="ov-content"),
+            dbc.Col([
+                html.Label("Catalog", className="text-muted small mb-1"),
+                dcc.Dropdown(
+                    id="ov-cat", options=["All"] + catalogs, value="All",
+                    clearable=False,
+                ),
+            ], width=3),
+            dbc.Col([
+                html.Label("Schema", className="text-muted small mb-1"),
+                dcc.Dropdown(
+                    id="ov-sch", options=["All"] + all_schemas, value="All",
+                    clearable=False,
+                ),
+            ], width=3),
+            dbc.Col(
+                dbc.Button("🔄 Refresh", id="ov-load-btn", color="secondary", size="sm"),
+                width="auto", className="ms-auto align-self-end pb-1",
+            ),
+        ], className="mb-3 align-items-end"),
+        dcc.Loading(
+            id="ov-loading",
+            type="circle",
+            color="#00C2CB",
+            children=html.Div(id="ov-content"),
+        ),
     ])
 
 
 def register_callbacks(app):
 
     @app.callback(
+        Output("ov-cat", "options"),
         Output("ov-sch", "options"),
         Output("ov-sch", "value"),
         Input("ov-cat", "value"),
+        Input("cfg-version", "data"),
         prevent_initial_call=True,
     )
-    def update_schema_opts(cat):
-        cfg = get_config()
-        if not cfg:
-            return ["All"], "All"
-        cat_f = None if cat == "All" else cat
-        opts = sorted({s["schema"] for s in cfg["schemas"] if not cat_f or s["catalog"] == cat_f})
-        return ["All"] + opts, "All"
+    def update_filter_opts(cat, _version):
+        cfg     = get_config() or {}
+        schemas = cfg.get("schemas", [])
+        cats    = sorted({s["catalog"] for s in schemas})
+        cat_f   = None if not cat or cat == "All" else cat
+        schs    = sorted({s["schema"] for s in schemas if not cat_f or s["catalog"] == cat_f})
+        return ["All"] + cats, ["All"] + schs, "All"
 
     @app.callback(
         Output("ov-content", "children"),
-        Input("ov-load-btn", "n_clicks"),
+        Input("ov-auto-load", "n_intervals"),  # fires once on initial render
+        Input("ov-load-btn", "n_clicks"),       # manual refresh
+        Input("cfg-version", "data"),           # config saved → auto-refresh
         State("ov-cat", "value"),
         State("ov-sch", "value"),
         prevent_initial_call=True,
     )
-    def load_overview(_, cat, sch):
+    def load_overview(_interval, _clicks, _version, cat, sch):
         cfg = get_config()
-        if not cfg:
-            return dbc.Alert("No config loaded.", color="warning")
+        if not cfg or not cfg.get("schemas"):
+            return dbc.Alert(
+                "No schemas configured. Go to the ⚙️ Configure tab to add schemas.", color="info")
 
         cat_f      = None if cat == "All" else cat
         sch_f      = None if sch == "All" else sch
         filtered   = resolve_schemas(cfg, cat_f, sch_f)
         exceptions = cfg.get("exceptions", [])
-        sf, ef     = schema_in(filtered), exc_clause(exceptions)
+        sf         = schema_in(filtered)
+        ef         = exc_clause(exceptions)
 
         try:
             result    = fetch_overview(sf, ef)

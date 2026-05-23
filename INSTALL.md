@@ -47,7 +47,11 @@ cd databricks-tag-governance
 
 ## Step 3 — Configure `app.yaml`
 
-Open `app.yaml` and fill in the three placeholder values:
+Copy the example file and fill in the three placeholder values:
+
+```bash
+cp app.yaml.example app.yaml
+```
 
 ```yaml
 command:
@@ -84,6 +88,8 @@ PROFILE="<your-profile>"
 
 databricks workspace import-dir . "$DEST" --profile "$PROFILE" --overwrite
 ```
+
+> `app.yaml.example` and `.gitignore` are ignored by the workspace — only `app.yaml` (your filled-in copy) is used by the app at runtime.
 
 This uploads the complete directory tree:
 

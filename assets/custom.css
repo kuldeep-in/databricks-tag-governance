@@ -1,0 +1,98 @@
+/* ── dcc.Dropdown dark-theme fix ──────────────────────────────────────────── */
+
+/* Control bar (the always-visible box) */
+.Select-control {
+    background-color: #122040 !important;
+    border-color: #1E3560 !important;
+    color: #e0e0e0 !important;
+}
+
+.Select-control:hover {
+    border-color: #00C2CB !important;
+    box-shadow: none !important;
+}
+
+/* Selected value text */
+.Select-value-label,
+.Select-single-value {
+    color: #e0e0e0 !important;
+}
+
+/* Placeholder text */
+.Select-placeholder {
+    color: #6c757d !important;
+}
+
+/* Typed input inside the control */
+.Select-input > input {
+    color: #e0e0e0 !important;
+    background: transparent !important;
+}
+
+/* Dropdown arrow */
+.Select-arrow {
+    border-top-color: #9ca3af !important;
+}
+.Select.is-open .Select-arrow {
+    border-bottom-color: #9ca3af !important;
+    border-top-color: transparent !important;
+}
+
+/* Dropdown menu container */
+.Select-menu-outer {
+    background-color: #0d1b2e !important;
+    border: 1px solid #1E3560 !important;
+    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.6) !important;
+    z-index: 9999 !important;
+}
+
+.Select-menu {
+    background-color: #0d1b2e !important;
+}
+
+/* Each option */
+.Select-option {
+    background-color: #0d1b2e !important;
+    color: #e0e0e0 !important;
+}
+
+/* Hovered / keyboard-focused option */
+.Select-option.is-focused {
+    background-color: #1E3560 !important;
+    color: #ffffff !important;
+}
+
+/* Already-selected option in the list */
+.Select-option.is-selected {
+    background-color: #163058 !important;
+    color: #00C2CB !important;
+    font-weight: 600;
+}
+
+/* Multi-value chips */
+.Select-value {
+    background-color: #1E3560 !important;
+    border-color: #00C2CB !important;
+    color: #e0e0e0 !important;
+}
+
+.Select-value-icon {
+    color: #9ca3af !important;
+    border-right-color: #00C2CB !important;
+}
+
+.Select-value-icon:hover {
+    background-color: #122040 !important;
+    color: #ff6b6b !important;
+}
+
+/* VirtualizedSelect (used in some Dash versions) */
+.VirtualizedSelectOption {
+    background-color: #0d1b2e !important;
+    color: #e0e0e0 !important;
+}
+
+.VirtualizedSelectFocusedOption {
+    background-color: #1E3560 !important;
+    color: #ffffff !important;
+}

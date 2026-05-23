@@ -1,0 +1,21 @@
+command:
+  - "gunicorn"
+  - "--bind=0.0.0.0:8000"
+  - "--workers=1"
+  - "--timeout=120"
+  - "app:server"
+
+env:
+  # The SQL warehouse used for all queries and grant statements.
+  # Find your warehouse ID: SQL Warehouses UI → click warehouse → Connection Details tab.
+  - name: SQL_WAREHOUSE_ID
+    value: <your-warehouse-id>
+
+  # Delta table that persists app configuration (catalog.schema.table).
+  # The catalog and schema must already exist; the table is created automatically.
+  - name: CONFIG_TABLE
+    value: <your-catalog>.<your-schema>.uc_tag_governance_config
+
+  # The Unity Catalog catalog whose information_schema is queried for table and tag metadata.
+  - name: INFO_CATALOG
+    value: <your-catalog>

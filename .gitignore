@@ -1,18 +1,14 @@
+# Environment-specific deployment config — contains warehouse IDs and catalog names
+app.yaml
+
 # Python
 __pycache__/
-*.pyc
+*.py[cod]
+*.egg-info/
 .venv/
 venv/
-.env
-
-# Node
-node_modules/
-
-# Frontend build output — run `npm run build` inside frontend/ before deploying
-frontend/dist/
-
-# Databricks
-.databricks/
+dist/
+build/
 
 # OS
 .DS_Store

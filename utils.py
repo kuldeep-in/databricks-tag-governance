@@ -47,6 +47,9 @@ def resolve_schemas(cfg: dict, catalog, schema) -> list[dict]:
 
 
 # ── Data fetchers ──────────────────────────────────────────────────────────────
+_INTERNAL_TABLE_FILTER = " AND t.table_name NOT LIKE 'event_log_%'"
+
+
 def fetch_overview(sf: str, ef: str) -> dict:
     def fetch_kpis():
         return sql(f"""
@@ -68,7 +71,7 @@ def fetch_overview(sf: str, ef: str) -> dict:
             ) sub ON sub.catalog_name=t.table_catalog
                  AND sub.schema_name=t.table_schema
                  AND sub.table_name=t.table_name
-            WHERE {sf}{ef}
+            WHERE {sf}{ef}{_INTERNAL_TABLE_FILTER}
         """)
 
     def fetch_dist():
@@ -78,21 +81,21 @@ def fetch_overview(sf: str, ef: str) -> dict:
             FROM {INFO_CATALOG}.information_schema.tables t
             JOIN {INFO_CATALOG}.information_schema.table_tags tg
               ON tg.catalog_name=t.table_catalog AND tg.schema_name=t.table_schema AND tg.table_name=t.table_name
-            WHERE {sf}{ef} AND tg.tag_name='Domain' GROUP BY tg.tag_value
+            WHERE {sf}{ef}{_INTERNAL_TABLE_FILTER} AND tg.tag_name='Domain' GROUP BY tg.tag_value
             UNION ALL
             SELECT 'subdomain', tg.tag_value,
                    COUNT(DISTINCT CONCAT(t.table_catalog,'.',t.table_schema,'.',t.table_name))
             FROM {INFO_CATALOG}.information_schema.tables t
             JOIN {INFO_CATALOG}.information_schema.table_tags tg
               ON tg.catalog_name=t.table_catalog AND tg.schema_name=t.table_schema AND tg.table_name=t.table_name
-            WHERE {sf}{ef} AND tg.tag_name='Subdomain' GROUP BY tg.tag_value
+            WHERE {sf}{ef}{_INTERNAL_TABLE_FILTER} AND tg.tag_name='Subdomain' GROUP BY tg.tag_value
             UNION ALL
             SELECT 'dataclass', tg.tag_value,
                    COUNT(DISTINCT CONCAT(t.table_catalog,'.',t.table_schema,'.',t.table_name))
             FROM {INFO_CATALOG}.information_schema.tables t
             JOIN {INFO_CATALOG}.information_schema.table_tags tg
               ON tg.catalog_name=t.table_catalog AND tg.schema_name=t.table_schema AND tg.table_name=t.table_name
-            WHERE {sf}{ef} AND tg.tag_name='DataClass' GROUP BY tg.tag_value
+            WHERE {sf}{ef}{_INTERNAL_TABLE_FILTER} AND tg.tag_name='DataClass' GROUP BY tg.tag_value
             ORDER BY metric, cnt DESC
         """)
 
@@ -116,7 +119,7 @@ def fetch_tables(sf: str, ef: str, tag_cols: list[str]) -> list[dict]:
         FROM {INFO_CATALOG}.information_schema.tables t
         LEFT JOIN {INFO_CATALOG}.information_schema.table_tags tg
           ON tg.catalog_name=t.table_catalog AND tg.schema_name=t.table_schema AND tg.table_name=t.table_name
-        WHERE {sf}{ef}
+        WHERE {sf}{ef}{_INTERNAL_TABLE_FILTER}
         GROUP BY t.table_catalog, t.table_schema, t.table_name, t.comment
         ORDER BY t.table_catalog, t.table_schema, t.table_name
     """)
