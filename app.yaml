@@ -1,15 +1,14 @@
 command:
-  - "streamlit"
-  - "run"
-  - "app.py"
-  - "--server.port=8000"
-  - "--server.address=0.0.0.0"
-  - "--server.headless=true"
+  - "gunicorn"
+  - "--bind=0.0.0.0:8000"
+  - "--workers=1"
+  - "--timeout=120"
+  - "app:server"
 
 env:
   # The SQL warehouse used for all queries and grant statements.
   - name: SQL_WAREHOUSE_ID
-    value: 00000000aaaa
+    value: 00000000aaaaa
 
   # Delta table that persists app configuration (catalog.schema.table).
   # The app creates this table automatically on first startup if it does not exist.
